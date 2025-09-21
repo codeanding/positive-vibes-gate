@@ -1,3 +1,7 @@
+## 1.2.0
+
+- feat(action): add last-merge mode for specific PR validation
+
 ## 1.1.0
 
 - feat(action): add dual mode support for deployment and PR validation
