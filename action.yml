@@ -22,6 +22,10 @@ inputs:
     description: 'Comma-separated list of positive emojis to look for'
     required: false
     default: '😊,🎉,✨,🚀,💫,🌟,🔥,💯,🎊,🥳,🎈,🌈,💖,🎯,⭐'
+  mode:
+    description: 'Validation mode: "pr" for PR title validation, "deployment" for team history scanning'
+    required: false
+    default: 'deployment'
 
 outputs:
   positive-vibes-found:

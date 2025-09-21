@@ -142,79 +142,117 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
 const core = __importStar(__nccwpck_require__(6966));
 const github = __importStar(__nccwpck_require__(4903));
-const github_api_1 = __nccwpck_require__(1899);
 const emojis_1 = __nccwpck_require__(3625);
+const github_api_1 = __nccwpck_require__(1899);
+async function runPRMode(positiveEmojis) {
+    const prTitle = github.context.payload.pull_request?.title || '';
+    const prNumber = github.context.payload.pull_request?.number || 0;
+    core.info(`🔍 Checking positive vibes for PR #${prNumber}...`);
+    core.info(`📝 PR Title: "${prTitle}"`);
+    core.info(`✨ Looking for these emojis: ${positiveEmojis.join(' ')}`);
+    const hasPositiveVibes = (0, emojis_1.hasPositiveEmoji)(prTitle, positiveEmojis);
+    const emojiCount = (0, emojis_1.countPositiveEmojis)(prTitle, positiveEmojis);
+    let message;
+    if (hasPositiveVibes) {
+        message = `✅ POSITIVE VIBES DETECTED! 🎉\nThis PR spreads joy with ${emojiCount} positive emoji(s)!\nPR #${prNumber}: "${prTitle}"`;
+        core.info(message);
+    }
+    else {
+        message = `❌ PR BLOCKED! 🚫\nThis PR lacks positive vibes!\nPR #${prNumber}: "${prTitle}"\nAdd some joy to your PR title: ${positiveEmojis
+            .slice(0, 10)
+            .join(' ')}`;
+        core.setFailed(message);
+    }
+    core.setOutput('positive-vibes-found', hasPositiveVibes.toString());
+    core.setOutput('total-positive-prs', hasPositiveVibes ? '1' : '0');
+    core.setOutput('message', message);
+    core.setOutput('contributors-stats', JSON.stringify({
+        [github.context.payload.pull_request?.user?.login || 'unknown']: {
+            username: github.context.payload.pull_request?.user?.login || 'unknown',
+            positivePRs: hasPositiveVibes ? 1 : 0,
+            totalEmojis: emojiCount,
+            prs: hasPositiveVibes
+                ? [
+                    {
+                        number: prNumber,
+                        title: prTitle,
+                        url: github.context.payload.pull_request?.html_url || '',
+                        emojiCount,
+                    },
+                ]
+                : [],
+        },
+    }));
+}
+async function runDeploymentMode(positiveEmojis) {
+    const token = core.getInput('github-token');
+    const daysLookback = parseInt(core.getInput('days-lookback')) || 7;
+    const requireCount = parseInt(core.getInput('require-count')) || 1;
+    const githubApi = new github_api_1.GitHubAPI(token);
+    const { owner, repo } = github.context.repo;
+    core.info(`🔍 Scanning team's positive vibes for deployment gate...`);
+    core.info(`📅 Looking back ${daysLookback} days for merged PRs`);
+    core.info(`🎯 Need ${requireCount} positive emoji PR(s) to deploy`);
+    core.info(`✨ Looking for these emojis: ${positiveEmojis.join(' ')}`);
+    const mergedPRs = await githubApi.getMergedPRs(owner, repo, daysLookback);
+    const positivePRs = [];
+    const contributorStats = {};
+    mergedPRs.forEach((pr) => {
+        const prData = githubApi.extractPRData(pr);
+        const emojiCount = (0, emojis_1.countPositiveEmojis)(prData.title, positiveEmojis);
+        if (emojiCount > 0) {
+            positivePRs.push({
+                ...prData,
+                emojiCount,
+            });
+            if (!contributorStats[prData.user]) {
+                contributorStats[prData.user] = {
+                    username: prData.user,
+                    positivePRs: 0,
+                    totalEmojis: 0,
+                    prs: [],
+                };
+            }
+            contributorStats[prData.user].positivePRs++;
+            contributorStats[prData.user].totalEmojis += emojiCount;
+            contributorStats[prData.user].prs.push({
+                number: prData.number,
+                title: prData.title,
+                url: prData.htmlUrl,
+                emojiCount,
+            });
+        }
+    });
+    const hasEnoughPositiveVibes = positivePRs.length >= requireCount;
+    let message;
+    if (hasEnoughPositiveVibes) {
+        message = `✅ DEPLOYMENT APPROVED! 🚀\nYour team has ${positivePRs.length} positive emoji PR(s) in the last ${daysLookback} days!\nSpread by: ${Object.keys(contributorStats).join(', ')}`;
+        core.info(message);
+    }
+    else {
+        message = `❌ DEPLOYMENT BLOCKED! 🚫\nYour team needs ${requireCount} positive emoji PR(s) but only has ${positivePRs.length}.\nLast ${daysLookback} days scanned. Create a PR with: ${positiveEmojis.slice(0, 10).join(' ')}`;
+        core.setFailed(message);
+    }
+    core.setOutput('positive-vibes-found', hasEnoughPositiveVibes.toString());
+    core.setOutput('total-positive-prs', positivePRs.length.toString());
+    core.setOutput('message', message);
+    core.setOutput('contributors-stats', JSON.stringify(contributorStats));
+}
 async function run() {
     try {
-        const token = core.getInput('github-token', { required: true });
-        const daysLookback = parseInt(core.getInput('days-lookback') || '7', 10);
-        const requireCount = parseInt(core.getInput('require-count') || '1', 10);
         const positiveEmojisInput = core.getInput('positive-emojis');
+        const mode = core.getInput('mode') || 'deployment';
         const positiveEmojis = (0, emojis_1.parsePositiveEmojis)(positiveEmojisInput);
-        const { owner, repo } = github.context.repo;
-        core.info(`🔍 Scanning ${owner}/${repo} for positive vibes in the last ${daysLookback} days...`);
-        core.info(`✨ Looking for these emojis: ${positiveEmojis.join(' ')}`);
-        const api = new github_api_1.GitHubAPI(token);
-        const mergedPRs = await api.getMergedPRs(owner, repo, daysLookback);
-        core.info(`📊 Found ${mergedPRs.length} merged PRs in the last ${daysLookback} days`);
-        const positivePRs = [];
-        const contributorStats = {};
-        for (const pr of mergedPRs) {
-            const prData = api.extractPRData(pr);
-            if ((0, emojis_1.hasPositiveEmoji)(prData.title, positiveEmojis)) {
-                const emojiCount = (0, emojis_1.countPositiveEmojis)(prData.title, positiveEmojis);
-                positivePRs.push({
-                    ...prData,
-                    emojiCount
-                });
-                if (!contributorStats[prData.user]) {
-                    contributorStats[prData.user] = {
-                        username: prData.user,
-                        positivePRs: 0,
-                        totalEmojis: 0,
-                        prs: []
-                    };
-                }
-                contributorStats[prData.user].positivePRs++;
-                contributorStats[prData.user].totalEmojis += emojiCount;
-                contributorStats[prData.user].prs.push({
-                    number: prData.number,
-                    title: prData.title,
-                    url: prData.htmlUrl,
-                    emojiCount
-                });
-            }
+        core.info(`🎯 Running in ${mode} mode`);
+        if (mode === 'pr') {
+            await runPRMode(positiveEmojis);
         }
-        const totalPositivePRs = positivePRs.length;
-        const positiveVibesFound = totalPositivePRs >= requireCount;
-        let message;
-        if (positiveVibesFound) {
-            message = `✅ POSITIVE VIBES DETECTED! 🎉\nFound ${totalPositivePRs} positive emoji PRs in the last ${daysLookback} days.\nYour team is spreading the joy! ✨`;
-            core.info(message);
+        else if (mode === 'deployment') {
+            await runDeploymentMode(positiveEmojis);
         }
         else {
-            message = `❌ DEPLOYMENT BLOCKED! 🚫\nYour team needs more ✨ in their lives!\nFound ${totalPositivePRs} positive emoji PRs in the last ${daysLookback} days (need ${requireCount}).\nAdd some joy to your PR titles: ${positiveEmojis.slice(0, 10).join(' ')}`;
-            core.setFailed(message);
+            throw new Error(`Invalid mode: ${mode}. Use 'pr' or 'deployment'`);
         }
-        if (positivePRs.length > 0) {
-            core.info('\n🌟 Positive PRs found:');
-            positivePRs.forEach(pr => {
-                core.info(`  • #${pr.number} by @${pr.user}: ${pr.title}`);
-            });
-        }
-        if (Object.keys(contributorStats).length > 0) {
-            core.info('\n📈 Positive Vibes Leaderboard:');
-            const sortedContributors = Object.values(contributorStats)
-                .sort((a, b) => b.totalEmojis - a.totalEmojis);
-            sortedContributors.forEach((contributor, index) => {
-                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏆';
-                core.info(`  ${medal} @${contributor.username}: ${contributor.positivePRs} PRs, ${contributor.totalEmojis} emojis`);
-            });
-        }
-        core.setOutput('positive-vibes-found', positiveVibesFound.toString());
-        core.setOutput('total-positive-prs', totalPositivePRs.toString());
-        core.setOutput('message', message);
-        core.setOutput('contributors-stats', JSON.stringify(contributorStats));
     }
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
