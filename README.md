@@ -28,11 +28,30 @@ Ever had a grumpy deployment? This GitHub Action requires positive emojis in PR 
     mode: pr
 ```
 
+**Last Merge Mode**:
+
+```yaml
+- name: Check last merged PR vibes
+  uses: codeanding/positive-vibes-gate@v1
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    mode: last-merge
+```
+
+## 📸 Demo in Action
+
+### ❌ Deployment Blocked - No Positive Vibes
+<img width="800" alt="Deployment Failed" src="https://github.com/user-attachments/assets/75645ed7-ecdc-4c21-983a-a0df0907d42c" />
+
+### ✅ Deployment Approved - Positive Vibes Found
+<img width="800" alt="Deployment Success" src="https://github.com/user-attachments/assets/0daae778-3b5c-4b4b-801f-efe55ef503a7" />
+
 ## Features
 
-- **Dual modes**: Deployment gate (team scanning) or PR validation
+- **Triple modes**: Deployment gate (team scanning), PR validation, or last-merge validation
 - **Scans merged PRs** for positive emojis (deployment mode)
 - **Validates PR titles** in real-time (PR mode)
+- **Validates last merged PR** specifically (last-merge mode)
 - **Blocks deployments/PRs** when vibes are low
 - **Contributor leaderboard** shows who spreads the most joy
 - **Configurable** emoji list and requirements
@@ -89,7 +108,7 @@ jobs:
 | Input             | Description                                           | Default                   |
 | ----------------- | ----------------------------------------------------- | ------------------------- |
 | `github-token`    | GitHub token for API access                           | `${{ github.token }}`     |
-| `mode`            | Validation mode: `deployment` or `pr`                 | `deployment`              |
+| `mode`            | Validation mode: `deployment`, `pr`, or `last-merge`  | `deployment`              |
 | `days-lookback`   | Days to look back for merged PRs (deployment mode)    | `7`                       |
 | `require-count`   | Minimum positive emoji PRs required (deployment mode) | `1`                       |
 | `positive-emojis` | Custom emoji list (comma-separated)                   | `😊,🎉,✨,🚀,💫,🌟,🔥,💯` |
