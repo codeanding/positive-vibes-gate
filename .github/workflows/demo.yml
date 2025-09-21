@@ -8,12 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check team positive vibes before deploy
+      - name: Check last merged PR positive vibes
         uses: codeanding/positive-vibes-gate@v1.1.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          mode: deployment
-          days-lookback: 7
-          require-count: 1
+          mode: last-merge
       - name: Simulate deployment
         run: echo "🚀 Deploying with good team vibes!"
