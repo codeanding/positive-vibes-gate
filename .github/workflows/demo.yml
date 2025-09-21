@@ -1,7 +1,7 @@
 name: 🎉 Positive Vibes Demo
 on:
   push:
-  pull_request:
+    branches: [main]
 
 jobs:
   check-vibes:
