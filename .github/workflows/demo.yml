@@ -1,0 +1,15 @@
+name: 🎉 Positive Vibes Demo
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-vibes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check our positive vibes
+        uses: codeanding/positive-vibes-gate@v1.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          days-lookback: 30
