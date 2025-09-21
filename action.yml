@@ -23,7 +23,7 @@ inputs:
     required: false
     default: '😊,🎉,✨,🚀,💫,🌟,🔥,💯,🎊,🥳,🎈,🌈,💖,🎯,⭐'
   mode:
-    description: 'Validation mode: "pr" for PR title validation, "deployment" for team history scanning'
+    description: 'Validation mode: "pr" for PR title validation, "deployment" for team history scanning, "last-merge" for last merged PR validation'
     required: false
     default: 'deployment'
 

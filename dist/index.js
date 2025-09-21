@@ -230,13 +230,76 @@ async function runDeploymentMode(positiveEmojis) {
         core.info(message);
     }
     else {
-        message = `❌ DEPLOYMENT BLOCKED! 🚫\nYour team needs ${requireCount} positive emoji PR(s) but only has ${positivePRs.length}.\nLast ${daysLookback} days scanned. Create a PR with: ${positiveEmojis.slice(0, 10).join(' ')}`;
+        message = `❌ DEPLOYMENT BLOCKED! 🚫\nYour team needs ${requireCount} positive emoji PR(s) but only has ${positivePRs.length}.\nLast ${daysLookback} days scanned. Create a PR with: ${positiveEmojis
+            .slice(0, 10)
+            .join(' ')}`;
         core.setFailed(message);
     }
     core.setOutput('positive-vibes-found', hasEnoughPositiveVibes.toString());
     core.setOutput('total-positive-prs', positivePRs.length.toString());
     core.setOutput('message', message);
     core.setOutput('contributors-stats', JSON.stringify(contributorStats));
+}
+async function runLastMergeMode(positiveEmojis) {
+    const token = core.getInput('github-token');
+    const githubApi = new github_api_1.GitHubAPI(token);
+    const { owner, repo } = github.context.repo;
+    core.info(`🔍 Checking last merged PR for positive vibes...`);
+    core.info(`✨ Looking for these emojis: ${positiveEmojis.join(' ')}`);
+    try {
+        const mergedPRs = await githubApi.getMergedPRs(owner, repo, 1);
+        if (mergedPRs.length === 0) {
+            const message = `❌ DEPLOYMENT BLOCKED! 🚫\nNo merged PRs found in the last day.\nCreate and merge a PR with positive vibes: ${positiveEmojis
+                .slice(0, 10)
+                .join(' ')}`;
+            core.setFailed(message);
+            core.setOutput('positive-vibes-found', 'false');
+            core.setOutput('total-positive-prs', '0');
+            core.setOutput('message', message);
+            core.setOutput('contributors-stats', JSON.stringify({}));
+            return;
+        }
+        const lastPR = githubApi.extractPRData(mergedPRs[0]);
+        const emojiCount = (0, emojis_1.countPositiveEmojis)(lastPR.title, positiveEmojis);
+        const hasPositiveVibes = emojiCount > 0;
+        core.info(`📝 Last merged PR #${lastPR.number}: "${lastPR.title}"`);
+        core.info(`👤 By: ${lastPR.user}`);
+        let message;
+        if (hasPositiveVibes) {
+            message = `✅ DEPLOYMENT APPROVED! 🚀\nLast merged PR has positive vibes!\nPR #${lastPR.number}: "${lastPR.title}" by ${lastPR.user}\nFound ${emojiCount} positive emoji(s)`;
+            core.info(message);
+        }
+        else {
+            message = `❌ DEPLOYMENT BLOCKED! 🚫\nLast merged PR lacks positive vibes!\nPR #${lastPR.number}: "${lastPR.title}" by ${lastPR.user}\nAdd positive vibes to your next PR: ${positiveEmojis
+                .slice(0, 10)
+                .join(' ')}`;
+            core.setFailed(message);
+        }
+        core.setOutput('positive-vibes-found', hasPositiveVibes.toString());
+        core.setOutput('total-positive-prs', hasPositiveVibes ? '1' : '0');
+        core.setOutput('message', message);
+        core.setOutput('contributors-stats', JSON.stringify({
+            [lastPR.user]: {
+                username: lastPR.user,
+                positivePRs: hasPositiveVibes ? 1 : 0,
+                totalEmojis: emojiCount,
+                prs: hasPositiveVibes
+                    ? [
+                        {
+                            number: lastPR.number,
+                            title: lastPR.title,
+                            url: lastPR.htmlUrl,
+                            emojiCount,
+                        },
+                    ]
+                    : [],
+            },
+        }));
+    }
+    catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(`Failed to check last merged PR: ${errorMessage}`);
+    }
 }
 async function run() {
     try {
@@ -250,8 +313,11 @@ async function run() {
         else if (mode === 'deployment') {
             await runDeploymentMode(positiveEmojis);
         }
+        else if (mode === 'last-merge') {
+            await runLastMergeMode(positiveEmojis);
+        }
         else {
-            throw new Error(`Invalid mode: ${mode}. Use 'pr' or 'deployment'`);
+            throw new Error(`Invalid mode: ${mode}. Use 'pr', 'deployment', or 'last-merge'`);
         }
     }
     catch (error) {
