@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check last merged PR positive vibes
-        uses: codeanding/positive-vibes-gate@v1.1.0
+        uses: codeanding/positive-vibes-gate@v1.2.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           mode: last-merge
