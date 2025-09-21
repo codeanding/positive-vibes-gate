@@ -1,0 +1,38 @@
+name: 'Positive Vibes Deployment Gate'
+description: 'Block deployments if your team lacks positive emoji vibes! 🎉✨'
+author: '@codeanding'
+branding:
+  icon: 'heart'
+  color: 'yellow'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+    default: ${{ github.token }}
+  days-lookback:
+    description: 'Number of days to look back for merged PRs (1-30)'
+    required: false
+    default: '7'
+  require-count:
+    description: 'Minimum number of positive emoji PRs required to pass'
+    required: false
+    default: '1'
+  positive-emojis:
+    description: 'Comma-separated list of positive emojis to look for'
+    required: false
+    default: '😊,🎉,✨,🚀,💫,🌟,🔥,💯,🎊,🥳,🎈,🌈,💖,🎯,⭐'
+
+outputs:
+  positive-vibes-found:
+    description: 'Whether positive vibes were found (true/false)'
+  total-positive-prs:
+    description: 'Total number of positive emoji PRs found'
+  message:
+    description: 'Human-readable message about the result'
+  contributors-stats:
+    description: 'JSON object with positive vibes stats per contributor'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
